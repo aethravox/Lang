@@ -32,6 +32,9 @@ static GLOBAL_LANG: AtomicU8 = AtomicU8::new(Language::Es as u8);
 #[cfg(feature = "atomics")]
 static GLOBAL_CATALOG: AtomicPtr<LangCatalog> = AtomicPtr::new(core::ptr::null_mut());
 
+#[cfg(feature = "atomics")]
+static GLOBAL_OVERRIDES: AtomicPtr<LangCatalog> = AtomicPtr::new(core::ptr::null_mut());
+
 /// Single compile-time entry inside a [`LangCatalog`].
 #[derive(Debug, Clone, Copy)]
 pub struct CatalogEntry {
@@ -139,6 +142,7 @@ impl LangCatalog {
 pub struct LangEngine {
     current: Language,
     catalog: Option<&'static LangCatalog>,
+    overrides: Option<&'static LangCatalog>,
 }
 
 impl LangEngine {
@@ -147,6 +151,7 @@ impl LangEngine {
         Self {
             current: initial,
             catalog: None,
+            overrides: None,
         }
     }
 
@@ -155,6 +160,20 @@ impl LangEngine {
         Self {
             current: initial,
             catalog: Some(catalog),
+            overrides: None,
+        }
+    }
+
+    #[inline]
+    pub const fn with_overrides(
+        initial: Language,
+        catalog: Option<&'static LangCatalog>,
+        overrides: &'static LangCatalog,
+    ) -> Self {
+        Self {
+            current: initial,
+            catalog,
+            overrides: Some(overrides),
         }
     }
 
@@ -186,9 +205,14 @@ impl LangEngine {
         variants[self.current.index()]
     }
 
-    /// Translate `source` using the attached catalog, falling back to `source` if missing.
+    /// Translate `source` using overrides first, then catalog, falling back to `source`.
     #[inline]
     pub fn tr(&self, source: &'static str) -> &'static str {
+        if let Some(ov) = self.overrides {
+            if let Some(found) = ov.lookup(source, self.current) {
+                return found;
+            }
+        }
         if let Some(cat) = self.catalog {
             if let Some(found) = cat.lookup(source, self.current) {
                 return found;
@@ -197,8 +221,16 @@ impl LangEngine {
         source
     }
 
-    /// Translate `source` into `buf` (uses catalog first, then `#![no_std]` offline translator).
+    /// Translate `source` into `buf` (uses overrides first, then catalog, then `#![no_std]` offline translator).
     pub fn tr_buf<'a>(&self, source: &str, buf: &'a mut [u8]) -> &'a str {
+        if let Some(ov) = self.overrides {
+            if let Some(found) = ov.lookup(source, self.current) {
+                let bytes = found.as_bytes();
+                let n = bytes.len().min(buf.len());
+                buf[..n].copy_from_slice(&bytes[..n]);
+                return core::str::from_utf8(&buf[..n]).unwrap_or("");
+            }
+        }
         if let Some(cat) = self.catalog {
             if let Some(found) = cat.lookup(source, self.current) {
                 let bytes = found.as_bytes();
@@ -248,6 +280,13 @@ pub fn install_catalog(catalog: &'static LangCatalog) {
     GLOBAL_CATALOG.store(catalog as *const LangCatalog as *mut LangCatalog, Ordering::Release);
 }
 
+/// Register a static [`LangCatalog`] as high-priority custom glossary overrides.
+#[cfg(feature = "atomics")]
+#[inline]
+pub fn install_overrides(overrides: &'static LangCatalog) {
+    GLOBAL_OVERRIDES.store(overrides as *const LangCatalog as *mut LangCatalog, Ordering::Release);
+}
+
 /// Select the string variant matching the current global language.
 /// Used transparently by `#[lang::auto]` and `lang::t!`.
 #[cfg(feature = "atomics")]
@@ -256,10 +295,17 @@ pub fn select(variants: &'static [&'static str; Language::COUNT]) -> &'static st
     variants[current_language().index()]
 }
 
-/// Look up a static string in the globally installed [`LangCatalog`] for the current language.
+/// Look up a static string in global overrides or [`LangCatalog`] for the current language.
 #[cfg(feature = "atomics")]
 #[inline]
 pub fn tr(source: &'static str) -> &'static str {
+    let ov_ptr = GLOBAL_OVERRIDES.load(Ordering::Acquire);
+    if !ov_ptr.is_null() {
+        let ov = unsafe { &*ov_ptr };
+        if let Some(found) = ov.lookup(source, current_language()) {
+            return found;
+        }
+    }
     let ptr = GLOBAL_CATALOG.load(Ordering::Acquire);
     if !ptr.is_null() {
         // SAFETY: `install_catalog` only stores `&'static LangCatalog`.
@@ -271,10 +317,20 @@ pub fn tr(source: &'static str) -> &'static str {
     source
 }
 
-/// Translate `source` into caller-supplied buffer `buf` using the global catalog or offline translator.
+/// Translate `source` into caller-supplied buffer `buf` using global overrides, catalog, or offline translator.
 #[cfg(feature = "atomics")]
 pub fn tr_buf<'a>(source: &str, buf: &'a mut [u8]) -> &'a str {
     let lang = current_language();
+    let ov_ptr = GLOBAL_OVERRIDES.load(Ordering::Acquire);
+    if !ov_ptr.is_null() {
+        let ov = unsafe { &*ov_ptr };
+        if let Some(found) = ov.lookup(source, lang) {
+            let bytes = found.as_bytes();
+            let n = bytes.len().min(buf.len());
+            buf[..n].copy_from_slice(&bytes[..n]);
+            return core::str::from_utf8(&buf[..n]).unwrap_or("");
+        }
+    }
     let ptr = GLOBAL_CATALOG.load(Ordering::Acquire);
     if !ptr.is_null() {
         // SAFETY: `install_catalog` only stores `&'static LangCatalog`.

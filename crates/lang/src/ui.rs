@@ -60,6 +60,18 @@ pub enum LabelStyle {
     CodeAndName,
 }
 
+impl LabelStyle {
+    /// Recommended minimum pixel width for a button using this label style.
+    #[inline]
+    pub const fn suggested_width(self) -> u32 {
+        match self {
+            Self::CodeOnly => 48,
+            Self::NativeName => 104,
+            Self::CodeAndName => 136,
+        }
+    }
+}
+
 /// Configuration for mounting a [`LangButton`] into a host's ready slot.
 #[derive(Debug, Clone, Copy)]
 pub struct ButtonConfig {
@@ -67,6 +79,14 @@ pub struct ButtonConfig {
     pub languages: &'static [Language],
     pub mode: ButtonMode,
     pub label_style: LabelStyle,
+}
+
+impl ButtonConfig {
+    /// Returns the suggested minimum button width for the configured [`LabelStyle`].
+    #[inline]
+    pub const fn suggested_width(&self) -> u32 {
+        self.label_style.suggested_width()
+    }
 }
 
 impl Default for ButtonConfig {
@@ -92,6 +112,13 @@ pub struct ButtonView<'a> {
 }
 
 impl<'a> ButtonView<'a> {
+    /// Recommended minimum width in pixels for the rendered `label` text.
+    #[inline]
+    pub const fn suggested_width(&self) -> u32 {
+        let approx = (self.label.len() as u32).saturating_mul(8).saturating_add(24);
+        if approx < 48 { 48 } else { approx }
+    }
+
     /// Helper geometry for dropdown option `index` placed stacked directly under `bounds`.
     #[inline]
     pub const fn option_bounds(&self, index: usize) -> Rect {
