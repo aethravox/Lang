@@ -13,8 +13,8 @@ alloc = ["lang-translator/alloc"]
 std = ["alloc"]
 
 [dependencies]
-lang-translator = { path = "../lang-translator" }
-lang-macros = { path = "../lang-macros", optional = true }
+lang-translator = { path = "../lang-translator", version = "0.1.0" }
+lang-macros = { path = "../lang-macros", version = "0.1.0", optional = true }
 
 [dev-dependencies]
-lang-build = { path = "../lang-build" }
+lang-build = { path = "../lang-build", version = "0.1.0" }
