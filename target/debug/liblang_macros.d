@@ -1,0 +1,1 @@
+/data/data/com.termux/files/home/Lang/target/debug/liblang_macros.so: /data/data/com.termux/files/home/Lang/target/package/lang-macros-0.1.0/src/lib.rs /data/data/com.termux/files/home/Lang/target/package/lang-macros-0.1.0/src/scanner.rs

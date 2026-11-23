@@ -1,0 +1,6 @@
+{
+  "git": {
+    "sha1": "5bc9835ac1170ad328b845a8b961342ecd989089"
+  },
+  "path_in_vcs": "crates/lang-build"
+}

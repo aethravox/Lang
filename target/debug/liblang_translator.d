@@ -1,0 +1,1 @@
+/data/data/com.termux/files/home/Lang/target/debug/liblang_translator.rlib: /data/data/com.termux/files/home/Lang/target/package/lang-translator-0.1.0/src/lexicon.rs /data/data/com.termux/files/home/Lang/target/package/lang-translator-0.1.0/src/lib.rs /data/data/com.termux/files/home/Lang/target/package/lang-translator-0.1.0/src/phrases.rs

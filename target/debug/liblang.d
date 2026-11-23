@@ -1,0 +1,1 @@
+/data/data/com.termux/files/home/Lang/target/debug/liblang.rlib: /data/data/com.termux/files/home/Lang/target/package/lang-0.1.0/src/lib.rs /data/data/com.termux/files/home/Lang/target/package/lang-0.1.0/src/ui.rs
